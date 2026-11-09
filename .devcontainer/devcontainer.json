@@ -1,0 +1,15 @@
+{
+  "name": "Bookshop demo",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "hostRequirements": { "cpus": 4, "memory": "8gb" },
+  "forwardPorts": [8080, 8001, 8002],
+  "portsAttributes": {
+    "8080": { "label": "UI", "onAutoForward": "openBrowser" },
+    "8001": { "label": "catalog" },
+    "8002": { "label": "orders" }
+  },
+  "postCreateCommand": "bash .devcontainer/setup.sh"
+}

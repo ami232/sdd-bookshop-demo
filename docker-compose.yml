@@ -1,0 +1,68 @@
+name: bookshop
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64          # no arm64 image: Docker Desktop on Apple Silicon needs Rosetta enabled
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  # One-off job: creates the databases and logins, then exits.
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD}
+      CATALOG_PWD: ${CATALOG_PWD}
+      ORDERS_PWD: ${ORDERS_PWD}
+    volumes:
+      - ./db/init.sql:/init.sql:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - /opt/mssql-tools18/bin/sqlcmd -C -b -S sqlserver -U sa -P "$$SA_PASSWORD" -i /init.sql -v CATALOG_PWD="$$CATALOG_PWD" ORDERS_PWD="$$ORDERS_PWD"
+
+  catalog:
+    build: ./services/catalog
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: mssql://catalog_user:${CATALOG_PWD}@sqlserver:1433/catalog
+      CORS_ORIGINS: ${UI_ORIGIN:-http://localhost:8080}
+    ports:
+      - "8001:8000"
+
+  orders:
+    build: ./services/orders
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: mssql://orders_user:${ORDERS_PWD}@sqlserver:1433/orders
+      CATALOG_URL: http://catalog:8000    # the service name, not localhost
+      CORS_ORIGINS: ${UI_ORIGIN:-http://localhost:8080}
+    ports:
+      - "8002:8000"
+
+  ui:
+    image: nginx:alpine                    # stock image, the folder is mounted: not a service container
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+
+volumes:
+  sqldata:

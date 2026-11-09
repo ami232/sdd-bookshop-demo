@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Bookshop</title>
+<h1>Bookshop</h1>
+<h2>Catalog</h2>
+<ul id="products"></ul>
+<h2>Orders</h2>
+<button id="order">Order product 1</button>
+<p id="message"></p>
+<ul id="orders"></ul>
+<script>
+  // Locally the services are on the host ports published by compose.
+  // In a browser-based Codespace each port has its own address: <name>-8080.app.github.dev -> <name>-8001.app.github.dev
+  const host = location.hostname;
+  const api = port => host.endsWith(".app.github.dev")
+    ? `${location.protocol}//${host.replace("-8080.", `-${port}.`)}`
+    : `http://localhost:${port}`;
+  const CATALOG = api(8001);
+  const ORDERS = api(8002);
+  async function load() {
+    const products = await (await fetch(CATALOG + "/products")).json();
+    document.getElementById("products").innerHTML = products.map(p => `<li>${p.id}. ${p.name}, ${p.price}</li>`).join("");
+    const orders = await (await fetch(ORDERS + "/orders")).json();
+    document.getElementById("orders").innerHTML = orders.map(o => `<li>order ${o.id}: product ${o.product_id} x ${o.quantity}</li>`).join("");
+  }
+  document.getElementById("order").onclick = async () => {
+    const r = await fetch(ORDERS + "/orders", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({product_id: 1, quantity: 1})});
+    document.getElementById("message").textContent = r.ok ? "Order created" : (await r.json()).detail;
+    load();
+  };
+  load();
+</script>
