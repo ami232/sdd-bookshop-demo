@@ -10,7 +10,21 @@ docker compose up --build     # first start takes about 30 s: SQL Server must be
 - UI: http://localhost:8080 · catalog: http://localhost:8001/products · orders: http://localhost:8002/orders
 - Partial failure: `docker compose stop catalog`, then order a product: orders answers 503 with a clear message and `/health` stays 200.
 - Reset the data: `docker compose down -v`.
-- CI: `.github/workflows/ci.yml` tests each service, builds each image on every push and pushes it to `ghcr.io/<owner>/bookshop-<service>:<sha>` only on `main`.
+- CI: `.github/workflows/ci.yml` tests each service and builds each image on every push and pull request. On `main` it runs inside the CD workflow and pushes the images to `ghcr.io/<owner>/bookshop-<service>:<sha>`.
+- UI: `ui/config.js` holds the services' addresses (localhost, or the Codespace's ports). On Azure the CD workflow overwrites it.
+
+## On Azure
+
+`.github/workflows/cd.yml` runs on every push to `main`. It runs CI, then:
+
+1. points each Container App at the images of this commit;
+2. writes `ui/config.js` with the services' Azure addresses;
+3. uploads `ui/` to the storage static website;
+4. waits for `/health` on both services to return 200.
+
+The deploy job is skipped until the repository has the Azure variables (`PREFIX`, `RESOURCE_GROUP`, `UI_STORAGE`).
+
+The one-time setup is in the guide "Assignment 2: deploying to your own Azure subscription" on Blackboard, steps 3–7. For this demo, use `SVC_A=catalog`, `SVC_B=orders`, port 8000 for both, and `CATALOG_URL` on `orders`. After the first push to `main`, make the two `bookshop-*` packages public. The images are built with `provenance: false`, because Container Apps can't pull a tag that points to an attestation index.
 
 ## In GitHub Codespaces (no local Docker)
 

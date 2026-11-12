@@ -8,15 +8,11 @@
 <button id="order">Order product 1</button>
 <p id="message"></p>
 <ul id="orders"></ul>
+<script src="config.js"></script>
 <script>
-  // Locally the services are on the host ports published by compose.
-  // In a browser-based Codespace each port has its own address: <name>-8080.app.github.dev -> <name>-8001.app.github.dev
-  const host = location.hostname;
-  const api = port => host.endsWith(".app.github.dev")
-    ? `${location.protocol}//${host.replace("-8080.", `-${port}.`)}`
-    : `http://localhost:${port}`;
-  const CATALOG = api(8001);
-  const ORDERS = api(8002);
+  // The service addresses come from config.js: localhost or Codespaces in compose, Azure after a deploy.
+  const CATALOG = window.CONFIG.CATALOG_URL;
+  const ORDERS = window.CONFIG.ORDERS_URL;
   async function load() {
     const products = await (await fetch(CATALOG + "/products")).json();
     document.getElementById("products").innerHTML = products.map(p => `<li>${p.id}. ${p.name}, ${p.price}</li>`).join("");
@@ -31,6 +27,6 @@
   // A blocked request (CORS, private port) only shows in the browser console: say so on the page.
   load().catch(e => {
     document.getElementById("message").textContent =
-      `Cannot reach the services (${e.message}). In a Codespace: ports 8001 and 8002 Public, and UI_ORIGIN in .env (see README).`;
+      `Cannot reach the services (${e.message}). In a Codespace: ports 8001 and 8002 Public, and UI_ORIGIN in .env. On Azure: the CORS setting of each Container App (see README).`;
   });
 </script>
