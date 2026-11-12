@@ -28,5 +28,9 @@
     document.getElementById("message").textContent = r.ok ? "Order created" : (await r.json()).detail;
     load();
   };
-  load();
+  // A blocked request (CORS, private port) only shows in the browser console: say so on the page.
+  load().catch(e => {
+    document.getElementById("message").textContent =
+      `Cannot reach the services (${e.message}). In a Codespace: ports 8001 and 8002 Public, and UI_ORIGIN in .env (see README).`;
+  });
 </script>
